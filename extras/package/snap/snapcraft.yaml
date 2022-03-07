@@ -2,7 +2,7 @@ name: vlc
 version-script: cat $SNAPCRAFT_STAGE/version
 version: "daily"
 grade: stable
-base: core18
+base: core20
 summary: Read, capture, broadcast your multimedia streams
 description: |
   VLC is a free and open source cross-platform multimedia player and
@@ -42,7 +42,7 @@ apps:
 parts:
   desktop-qt5-vlc:
     source: https://github.com/ubuntu/snapcraft-desktop-helpers.git
-    source-commit: 622e2aa7a840b3a7dbb6ea4d432d687d5cc2e8ef
+    source-commit: c12ad1891667b49b8401e606341ad7ba7ba6a69e
     source-subdir: qt/
     plugin: make
     make-parameters: ["FLAVOR=qt5"]
@@ -120,7 +120,7 @@ parts:
       - libdbus-1-dev
       - libdirectfb-dev
       - libegl1-mesa-dev
-      - libfreerdp-dev
+      - freerdp2-dev
       - libfreetype6-dev
       - libfribidi-dev
       - libgles2-mesa-dev
@@ -169,9 +169,8 @@ parts:
       - fonts-freefont-ttf
       - dbus-x11
       - libegl1-mesa
-      - libfreerdp-client1.1
-      - libfreerdp-core1.1
-      - libfreerdp-gdi1.1
+      - libfreerdp-client2-2
+      - libfreerdp2-2
       - libfreetype6
       - libfribidi0
       - libdb5.3
@@ -200,8 +199,9 @@ parts:
       - libxinerama1
       - libxkbcommon-x11-0
       - libxpm4
-      - vdpau-va-driver
+      - vdpau-driver-all
       - i965-va-driver
+      - intel-media-va-driver-non-free
       - mesa-utils
       - mesa-vdpau-drivers
       - zlib1g
@@ -215,7 +215,7 @@ parts:
       - libgtk-3-0
       - liblua5.2-0
       - libmtp9
-      - libupnp6
+      - libupnp13
       - libzvbi0
       - libnotify4
       - libvulkan1

@@ -209,6 +209,7 @@ parts:
       - libxpm4
       - vdpau-driver-all
       - i965-va-driver
+      - intel-media-va-driver-non-free
       - mesa-utils
       - mesa-vdpau-drivers
       - zlib1g

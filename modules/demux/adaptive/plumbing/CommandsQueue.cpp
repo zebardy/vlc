@@ -40,6 +40,7 @@ enum
     ES_OUT_PRIVATE_COMMAND_SEND,
     ES_OUT_PRIVATE_COMMAND_DISCONTINUITY,
     ES_OUT_PRIVATE_COMMAND_MILESTONE,
+    ES_OUT_PRIVATE_COMMAND_PROGRESS,
 };
 
 AbstractCommand::AbstractCommand( int type_ )
@@ -181,6 +182,17 @@ void EsOutMilestoneCommand::Execute()
     out->milestoneReached();
 }
 
+EsOutMediaProgressCommand::EsOutMediaProgressCommand(const SegmentTimes &t)
+    : AbstractCommand( ES_OUT_PRIVATE_COMMAND_PROGRESS )
+{
+    times = Times(t, VLC_TICK_INVALID);
+}
+
+void EsOutMediaProgressCommand::Execute()
+{
+
+}
+
 /*
  * Commands Default Factory
  */
@@ -234,6 +246,13 @@ EsOutMetaCommand * CommandsFactory::createEsOutMetaCommand( AbstractFakeEsOut *o
 EsOutMilestoneCommand * CommandsFactory::createEsOutMilestoneCommand( AbstractFakeEsOut *out ) const
 {
     return new (std::nothrow) EsOutMilestoneCommand( out );
+}
+
+EsOutMediaProgressCommand * CommandsFactory::createEsOutMediaProgressCommand( const SegmentTimes &t ) const
+{
+    try {
+        return new EsOutMediaProgressCommand( t );
+    } catch(...) { return nullptr; }
 }
 
 /*
@@ -326,6 +345,12 @@ void CommandsQueue::Schedule( AbstractCommand *command, EsType )
 {
     if( b_drop )
     {
+        delete command;
+    }
+    else if( command->getType() == ES_OUT_PRIVATE_COMMAND_PROGRESS )
+    {
+        const Times &times = command->getTimes();
+        bufferinglevel_media = times.segment;
         delete command;
     }
     else if( command->getType() == ES_OUT_SET_GROUP_PCR )
@@ -458,6 +483,7 @@ void CommandsQueue::Abort( bool b_reset )
     if( b_reset )
     {
         bufferinglevel = Times();
+        bufferinglevel_media = SegmentTimes();
         pcr = Times();
         b_draining = false;
         b_eof = false;
@@ -479,22 +505,24 @@ Times CommandsQueue::getDemuxedAmount(Times from) const
     Times bufferingstart = getFirstTimes();
     if( bufferinglevel.continuous == VLC_TICK_INVALID ||
         bufferingstart.continuous == VLC_TICK_INVALID ||
+        from.continuous == VLC_TICK_INVALID ||
         from.continuous > bufferinglevel.continuous )
-        return Times(SegmentTimes(0,0),0);
-    if( from.continuous > bufferingstart.continuous )
-    {
-        Times t = bufferinglevel;
-        t.segment.offsetBy( -from.continuous );
-        t.continuous -= from.continuous;
-        return t;
-    }
-    else
-    {
-        Times t = bufferinglevel;
-        t.segment.offsetBy( -bufferingstart.continuous );
-        t.continuous -= bufferingstart.continuous;
-        return t;
-    }
+        return Times(SegmentTimes(0,0),0); /* durations */
+
+    Times t = bufferinglevel;
+    t.offsetBy( - from.continuous );
+    return t;
+}
+
+Times CommandsQueue::getDemuxedMediaAmount(const Times &from) const
+{
+    if(from.continuous == VLC_TICK_INVALID ||
+       bufferinglevel_media.media == VLC_TICK_INVALID ||
+       from.segment.media > bufferinglevel_media.media)
+        return Times(SegmentTimes(0,0),0);  /* durations */
+    Times t = from;
+    t.offsetBy( bufferinglevel_media.media - from.segment.media - from.segment.media );
+    return t;
 }
 
 Times CommandsQueue::getBufferingLevel() const

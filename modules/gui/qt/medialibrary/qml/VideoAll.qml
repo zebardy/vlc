@@ -140,10 +140,8 @@ FocusScope {
 
     function _onNavigationUp() {
         // NOTE: We are calling the header focus function when we have one.
-        if (headerItem && headerItem.visible
-            &&
-            (typeof headerItem.setCurrentItemFocus === "function"))
-            headerItem.setCurrentItemFocus(Qt.TabFocusReason)
+        if (headerItem && headerItem.focus)
+            headerItem.forceActiveFocus(Qt.TabFocusReason)
         else
             Navigation.defaultNavigationUp()
     }
@@ -312,9 +310,10 @@ FocusScope {
     Component {
         id: list
 
-        VideoListDisplay
-        {
+        VideoListDisplay {
             id: listView
+
+            readonly property real contentMargin: VLCStyle.margin_normal
 
             // Settings
 
@@ -347,8 +346,7 @@ FocusScope {
 
             onItemDoubleClicked: root.onDoubleClick(model)
 
-            onContextMenuButtonClicked: root.contextMenu.popup(modelSelect.selectedIndexes,
-                                                               menuParent.mapToGlobal(0,0))
+            onContextMenuButtonClicked: root.contextMenu.popup(modelSelect.selectedIndexes, globalMousePos)
 
             onRightClick: root.contextMenu.popup(modelSelect.selectedIndexes, globalMousePos)
 

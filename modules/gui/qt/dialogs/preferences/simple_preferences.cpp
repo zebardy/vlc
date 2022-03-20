@@ -319,8 +319,9 @@ SPrefsPanel::SPrefsPanel( qt_intf_t *_p_intf, QWidget *_parent,
                 controls.append( control );                               \
             }                                                             \
             else {                                                        \
+                QWidget *label_ = label;                                  \
                 ui.qcontrol->setEnabled( false );                         \
-                if( label ) label->setEnabled( false );                   \
+                if( label_ ) label_->setEnabled( false );                 \
             }
 
 #define CONFIG_BOOL( option, qcontrol )                           \
@@ -332,7 +333,6 @@ SPrefsPanel::SPrefsPanel( qt_intf_t *_p_intf, QWidget *_parent,
                 controls.append( control );                               \
             }                                                             \
             else { ui.qcontrol->setEnabled( false ); }
-
 
 #define CONFIG_GENERIC_NO_UI( option, type, label, qcontrol )             \
             p_config =  config_FindConfig( option );                      \
@@ -348,16 +348,6 @@ SPrefsPanel::SPrefsPanel( qt_intf_t *_p_intf, QWidget *_parent,
                 if( widget ) widget->setEnabled( false );                 \
             }
 
-
-#define CONFIG_GENERIC_NO_BOOL( option, type, label, qcontrol )           \
-            p_config =  config_FindConfig( option );                      \
-            if( p_config )                                                \
-            {                                                             \
-                control =  new type ## ConfigControl(                     \
-                           p_config, label, ui.qcontrol );                \
-                controls.append( control );                               \
-            }
-
 #define CONFIG_GENERIC_FILE( option, type, label, qcontrol, qbutton )     \
             p_config =  config_FindConfig( option );                      \
             if( p_config )                                                \
@@ -365,6 +355,11 @@ SPrefsPanel::SPrefsPanel( qt_intf_t *_p_intf, QWidget *_parent,
                 control =  new type ## ConfigControl(                     \
                            p_config, label, qcontrol, qbutton );          \
                 controls.append( control );                               \
+            }                                                             \
+            else {                                                        \
+                qcontrol->setEnabled( false );                            \
+                if( label ) label->setEnabled( false );                   \
+                if( qbutton ) qbutton->setEnabled( false );               \
             }
 
 #define START_SPREFS_CAT( name , label )    \
@@ -570,8 +565,12 @@ SPrefsPanel::SPrefsPanel( qt_intf_t *_p_intf, QWidget *_parent,
 
             CONFIG_BOOL( "spdif", spdifBox );
 
-            CONFIG_GENERIC_NO_BOOL( "norm-max-level" , Float, NULL,
-                                    volNormSpin );
+            if( !module_exists( "normvol" ) )
+                ui.volNormBox->setEnabled( false );
+            else
+            {
+                CONFIG_GENERIC( "norm-max-level" , Float, nullptr, volNormSpin );
+            }
             CONFIG_GENERIC( "audio-replay-gain-mode", StringList, ui.replayLabel,
                             replayCombo );
             CONFIG_GENERIC( "audio-visual" , StringList, ui.visuLabel,
@@ -591,8 +590,6 @@ SPrefsPanel::SPrefsPanel( qt_intf_t *_p_intf, QWidget *_parent,
             optionWidgets["fileW"] = ui.fileControl;
             optionWidgets["audioOutCoB"] = ui.outputModule;
             optionWidgets["normalizerChB"] = ui.volNormBox;
-            /*Little modification of ui.volumeValue to compile with Qt < 4.3 */
-            ui.volumeValue->setButtonSymbols(QAbstractSpinBox::NoButtons);
             optionWidgets["volLW"] = ui.volumeValue;
             optionWidgets["spdifChB"] = ui.spdifBox;
             optionWidgets["defaultVolume"] = ui.defaultVolume;
@@ -639,7 +636,7 @@ SPrefsPanel::SPrefsPanel( qt_intf_t *_p_intf, QWidget *_parent,
 
             bool b_enabled = ( qs_filter.contains( "normvol" ) );
             ui.volNormBox->setChecked( b_enabled );
-            ui.volNormSpin->setEnabled( b_enabled );
+            ui.volNormSpin->setEnabled( b_enabled && ui.volNormBox->isEnabled() );
 
             /* Volume Label */
             updateAudioVolume( ui.defaultVolume->value() ); // First time init
@@ -658,18 +655,21 @@ SPrefsPanel::SPrefsPanel( qt_intf_t *_p_intf, QWidget *_parent,
                          "for DVD, VCD, and CDDA are set.\n"
                          "You can define a unique one or configure them \n"
                          "individually in the advanced preferences." ) );
-                char *psz_dvddiscpath = config_GetPsz( "dvd" );
-                char *psz_vcddiscpath = config_GetPsz( "vcd" );
-                char *psz_cddadiscpath = config_GetPsz( "cd-audio" );
-                if( psz_dvddiscpath && psz_vcddiscpath && psz_cddadiscpath )
-                if( !strcmp( psz_cddadiscpath, psz_dvddiscpath ) &&
-                    !strcmp( psz_dvddiscpath, psz_vcddiscpath ) )
+                bool have_cdda = module_exists( "cdda" );
+                char *dvd_discpath = config_GetPsz( "dvd" );
+                char *vcd_discpath = config_GetPsz( "vcd" );
+                char *cdda_discpath = have_cdda ? config_GetPsz( "cd-audio" ) : nullptr;
+                if( dvd_discpath && vcd_discpath && ( !have_cdda || cdda_discpath ) )
                 {
-                    ui.DVDDeviceComboBox->setEditText( qfu( psz_dvddiscpath ) );
+                    if( !strcmp( dvd_discpath, vcd_discpath ) &&
+                        ( !have_cdda || !strcmp( cdda_discpath, dvd_discpath ) ) )
+                    {
+                        ui.DVDDeviceComboBox->setEditText( qfu( dvd_discpath ) );
+                    }
                 }
-                free( psz_cddadiscpath );
-                free( psz_dvddiscpath );
-                free( psz_vcddiscpath );
+                free( cdda_discpath );
+                free( dvd_discpath );
+                free( vcd_discpath );
             }
 #ifndef _WIN32
             QStringList DVDDeviceComboBoxStringList = QStringList();
@@ -686,8 +686,7 @@ SPrefsPanel::SPrefsPanel( qt_intf_t *_p_intf, QWidget *_parent,
                                  ui.recordPath, ui.recordBrowse );
 
             CONFIG_GENERIC( "http-proxy", String , ui.httpProxyLabel, proxy );
-            CONFIG_GENERIC_NO_BOOL( "postproc-q", Integer, ui.ppLabel,
-                                    PostProcLevel );
+            CONFIG_GENERIC( "postproc-q", Integer, ui.ppLabel, PostProcLevel );
             CONFIG_GENERIC( "avi-index", IntegerList, ui.aviLabel, AviRepair );
 
             /* live555 module prefs */
@@ -711,15 +710,12 @@ SPrefsPanel::SPrefsPanel( qt_intf_t *_p_intf, QWidget *_parent,
 
             /* Caching */
             /* Add the things to the ComboBox */
-            #define addToCachingBox( str, cachingNumber ) \
-                ui.cachingCombo->addItem( qfut(str), QVariant( cachingNumber ) );
-            addToCachingBox( N_("Custom"), CachingCustom );
-            addToCachingBox( N_("Lowest latency"), CachingLowest );
-            addToCachingBox( N_("Low latency"), CachingLow );
-            addToCachingBox( N_("Normal"), CachingNormal );
-            addToCachingBox( N_("High latency"), CachingHigh );
-            addToCachingBox( N_("Higher latency"), CachingHigher );
-            #undef addToCachingBox
+            ui.cachingCombo->addItem( qtr("Custom"), QVariant( CachingCustom ) );
+            ui.cachingCombo->addItem( qtr("Lowest latency"), QVariant( CachingLowest ) );
+            ui.cachingCombo->addItem( qtr("Low latency"), QVariant( CachingLow ) );
+            ui.cachingCombo->addItem( qtr("Normal"), QVariant( CachingNormal ) );
+            ui.cachingCombo->addItem( qtr("High latency"), QVariant( CachingHigh ) );
+            ui.cachingCombo->addItem( qtr("Higher latency"), QVariant( CachingHigher ) );
 
 #define TestCaC( name, factor ) \
     b_cache_equal =  b_cache_equal && \
@@ -731,7 +727,7 @@ SPrefsPanel::SPrefsPanel( qt_intf_t *_p_intf, QWidget *_parent,
             TestCaC( "network-caching", 10/3 );
             TestCaC( "disc-caching", 1);
             TestCaC( "live-caching", 1 );
-            if( b_cache_equal == 1 )
+            if( b_cache_equal )
                 ui.cachingCombo->setCurrentIndex(
                     ui.cachingCombo->findData( QVariant( i_cache ) ) );
 #undef TestCaC
@@ -768,7 +764,7 @@ SPrefsPanel::SPrefsPanel( qt_intf_t *_p_intf, QWidget *_parent,
 //            ui.defaultLabel->setFont( italicFont );
             ui.skinsLabel->setText(
                     qtr( "This is VLC's skinnable interface. You can download other skins at" )
-                    + QString( " <a href=\"http://www.videolan.org/vlc/skins.php\">" )
+                    + QString( " <a href=\"https://www.videolan.org/vlc/skins.php\">" )
                     + qtr( "VLC skins website" ) + QString( "</a>." ) );
             ui.skinsLabel->setFont( italicFont );
 
@@ -778,17 +774,25 @@ SPrefsPanel::SPrefsPanel( qt_intf_t *_p_intf, QWidget *_parent,
             ui.osGroupBox->hide();
 #endif
 
-            /* interface */
-            char *psz_intf = config_GetPsz( "intf" );
-            if( psz_intf )
+            if( !module_exists( "skins2" ) )
             {
-                if( strstr( psz_intf, "skin" ) )
-                    ui.skins->setChecked( true );
-            } else {
-                /* defaults to qt */
-                ui.qt->setChecked( true );
+                ui.LooknfeelSelection->hide();
+                ui.mainPreview->hide();
             }
-            free( psz_intf );
+            else
+            {
+                /* interface */
+                char *psz_intf = config_GetPsz( "intf" );
+                if( psz_intf )
+                {
+                    if( strstr( psz_intf, "skin" ) )
+                        ui.skins->setChecked( true );
+                } else {
+                    /* defaults to qt */
+                    ui.qt->setChecked( true );
+                }
+                free( psz_intf );
+            }
 
             optionWidgets["skinRB"] = ui.skins;
             optionWidgets["qtRB"] = ui.qt;
@@ -894,8 +898,7 @@ SPrefsPanel::SPrefsPanel( qt_intf_t *_p_intf, QWidget *_parent,
             /* UPDATE options */
 #ifdef UPDATE_CHECK
             CONFIG_BOOL( "qt-updates-notif", updatesBox );
-            CONFIG_GENERIC_NO_BOOL( "qt-updates-days", Integer, NULL,
-                    updatesDays );
+            CONFIG_GENERIC( "qt-updates-days", Integer, nullptr, updatesDays );
             ui.updatesDays->setEnabled( ui.updatesBox->isChecked() );
             connect( ui.updatesBox, &QCheckBox::toggled,
                      ui.updatesDays, &QSpinBox::setEnabled );
@@ -906,7 +909,11 @@ SPrefsPanel::SPrefsPanel( qt_intf_t *_p_intf, QWidget *_parent,
             /* ONE INSTANCE options */
 #if !defined( _WIN32 ) && !defined(__APPLE__) && !defined(__OS2__)
             if( !module_exists( "dbus" ) )
-                ui.OneInterfaceBox->hide();
+            {
+                ui.OneInterfaceMode->hide();
+                ui.EnqueueOneInterfaceMode->hide();
+                ui.oneInstanceFromFile->hide();
+            }
             else
 #endif
             {
@@ -966,24 +973,31 @@ SPrefsPanel::SPrefsPanel( qt_intf_t *_p_intf, QWidget *_parent,
             CONFIG_GENERIC( "freetype-rel-fontsize", IntegerList,
                             ui.fontSizeLabel, fontSize );
 
-            CONFIG_GENERIC_NO_BOOL( "freetype-font", Font, ui.fontLabel, font );
-            CONFIG_GENERIC_NO_BOOL( "freetype-color", Color, ui.fontColorLabel,
-                            fontColor );
+            CONFIG_GENERIC( "freetype-font", Font, ui.fontLabel, font );
+            CONFIG_GENERIC( "freetype-color", Color, ui.fontColorLabel, fontColor );
             CONFIG_GENERIC( "freetype-outline-thickness", IntegerList,
                             ui.fontEffectLabel, effect );
-            CONFIG_GENERIC_NO_BOOL( "freetype-outline-color", Color, ui.outlineColorLabel,
+            CONFIG_GENERIC( "freetype-outline-color", Color, ui.outlineColorLabel,
                             outlineColor );
 
-            CONFIG_GENERIC_NO_BOOL( "sub-margin", Integer, ui.subsPosLabel, subsPosition );
+            CONFIG_GENERIC( "sub-margin", Integer, ui.subsPosLabel, subsPosition );
 
-            ui.shadowCheck->setChecked( config_GetInt( "freetype-shadow-opacity" ) > 0 );
-            ui.backgroundCheck->setChecked( config_GetInt( "freetype-background-opacity" ) > 0 );
+            if( module_exists( "freetype" ) )
+            {
+                ui.shadowCheck->setChecked( config_GetInt( "freetype-shadow-opacity" ) > 0 );
+                ui.backgroundCheck->setChecked( config_GetInt( "freetype-background-opacity" ) > 0 );
+            }
+            else
+            {
+                ui.shadowCheck->setEnabled( false );
+                ui.backgroundCheck->setEnabled( false );
+            }
             optionWidgets["shadowCB"] = ui.shadowCheck;
             optionWidgets["backgroundCB"] = ui.backgroundCheck;
 
             CONFIG_GENERIC( "secondary-sub-alignment", IntegerList,
                             ui.secondarySubsAlignmentLabel, secondarySubsAlignment );
-            CONFIG_GENERIC_NO_BOOL( "secondary-sub-margin", Integer, ui.secondarySubsPosLabel, secondarySubsPosition );
+            CONFIG_GENERIC( "secondary-sub-margin", Integer, ui.secondarySubsPosLabel, secondarySubsPosition );
         END_SPREFS_CAT;
 
         /********************************
@@ -1067,7 +1081,6 @@ SPrefsPanel::SPrefsPanel( qt_intf_t *_p_intf, QWidget *_parent,
 #undef END_SPREFS_CAT
 #undef START_SPREFS_CAT
 #undef CONFIG_GENERIC_FILE
-#undef CONFIG_GENERIC_NO_BOOL
 #undef CONFIG_GENERIC_NO_UI
 #undef CONFIG_GENERIC
 #undef CONFIG_BOOL
@@ -1169,7 +1182,8 @@ void SPrefsPanel::apply()
         {
             config_PutPsz( "dvd", devicepath );
             config_PutPsz( "vcd", devicepath );
-            config_PutPsz( "cd-audio", devicepath );
+            if( module_exists( "cdda" ) )
+                config_PutPsz( "cd-audio", devicepath );
         }
 
 #define CaC( name, factor ) config_PutInt( name, i_comboValue * factor )

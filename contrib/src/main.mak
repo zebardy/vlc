@@ -127,12 +127,12 @@ endif
 
 LN_S = ln -s
 ifdef HAVE_WIN32
-MINGW_W64_VERSION := $(shell $(CC) $(CFLAGS) -E -dM -include _mingw.h - < /dev/null | grep -E -m 1 __MINGW64_VERSION_MAJOR | sed -e 's/\#define\s__MINGW64_VERSION_MAJOR\s//')
+MINGW_W64_VERSION := $(shell echo "__MINGW64_VERSION_MAJOR" | $(CC) $(CFLAGS) -E -include _mingw.h - | tail -n 1)
 ifneq ($(MINGW_W64_VERSION),)
 HAVE_MINGW_W64 := 1
 mingw_at_least = $(shell [ $(MINGW_W64_VERSION) -gt $(1) ] && echo true)
-HAVE_WINPTHREAD := $(shell $(CC) $(CFLAGS) -E -dM -include pthread.h - < /dev/null >/dev/null 2>&1 || echo FAIL)
 endif
+HAVE_WINPTHREAD := $(shell $(CC) $(CFLAGS) -E -dM -include pthread.h - < /dev/null >/dev/null 2>&1 || echo FAIL)
 ifndef HAVE_CROSS_COMPILE
 LN_S = cp -R
 endif
@@ -529,6 +529,7 @@ PKGS := $(sort $(PKGS_MANUAL) $(PKGS_DEPS))
 fetch: $(PKGS:%=.sum-%)
 fetch-all: $(PKGS_ALL:%=.sum-%)
 install: $(PKGS:%=.%)
+tools: $(PKGS_TOOLS:%=.dep-%)
 
 mostlyclean:
 	-$(RM) $(foreach p,$(PKGS_ALL),.$(p) .sum-$(p) .dep-$(p))
@@ -578,6 +579,8 @@ endif
 list:
 	@echo All packages:
 	@echo '  $(PKGS_ALL)' | tr " " "\n" | sort | tr "\n" " " |fmt
+	@echo All native tools:
+	@echo '  $(PKGS_TOOLS)' | tr " " "\n" | sort | tr "\n" " " |fmt
 	@echo Distribution-provided packages:
 	@echo '  $(PKGS_FOUND)' | tr " " "\n" | sort | tr "\n" " " |fmt
 	@echo Automatically selected packages:
@@ -594,7 +597,7 @@ list:
 help:
 	@cat $(SRC)/help.txt
 
-.PHONY: all fetch fetch-all install mostlyclean clean distclean package list help prebuilt
+.PHONY: all fetch fetch-all install mostlyclean clean distclean package list help prebuilt tools
 
 CMAKE_SYSTEM_NAME =
 ifdef HAVE_CROSS_COMPILE

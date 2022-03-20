@@ -47,6 +47,7 @@ AbstractStream::AbstractStream(demux_t * demux_)
     eof = false;
     valid = true;
     disabled = false;
+    contiguous = true;
     segmentgap = false;
     discontinuity = false;
     needrestart = false;
@@ -92,7 +93,8 @@ bool AbstractStream::init(const StreamFormat &format_, SegmentTracker *tracker)
                 segmentTracker = tracker;
                 segmentTracker->registerListener(this);
                 segmentTracker->notifyBufferingState(true);
-                fakeesout->setExpectedTimestamp(segmentTracker->getPlaybackTime());
+                if(mightalwaysstartfromzero)
+                    fakeesout->setExpectedTimestamp(VLC_TICK_0 + segmentTracker->getPlaybackTime());
                 declaredCodecs();
                 return true;
             }
@@ -159,10 +161,10 @@ bool AbstractStream::resetForNewPosition(vlc_tick_t seekMediaTime)
         fakeEsOut()->commandsQueue()->Abort( true );
         startTimeContext = SegmentTimes();
         currentTimeContext = SegmentTimes();
-        prevTimeContext = SegmentTimes();
+        prevEndTimeContext = SegmentTimes();
         currentChunk = getNextChunk();
         if(mightalwaysstartfromzero)
-            fakeEsOut()->setExpectedTimestamp(seekMediaTime);
+            fakeEsOut()->setExpectedTimestamp(VLC_TICK_0 + seekMediaTime);
         if( !restartDemux() )
         {
             msg_Info(p_realdemux, "Restart demux failed");
@@ -318,11 +320,6 @@ void AbstractStream::setDisabled(bool b)
     disabled = b;
 }
 
-bool AbstractStream::isContiguousMux() const
-{
-    return true;
-}
-
 bool AbstractStream::isValid() const
 {
     vlc_mutex_locker locker(&lock);
@@ -350,9 +347,16 @@ bool AbstractStream::decodersDrained()
     return fakeEsOut()->decodersDrained();
 }
 
-Times AbstractStream::getDemuxedAmount(Times from) const
+vlc_tick_t AbstractStream::getDemuxedAmount(Times from) const
 {
-    return fakeEsOut()->commandsQueue()->getDemuxedAmount(from);
+    vlc_tick_t i_demuxed = fakeEsOut()->commandsQueue()->getDemuxedAmount(from).continuous;
+    if(contiguous)
+    {
+        vlc_tick_t i_media_demuxed = fakeEsOut()->commandsQueue()->getDemuxedMediaAmount(from).segment.media;
+        if(i_media_demuxed > i_demuxed)
+            i_demuxed = i_media_demuxed;
+    }
+    return i_demuxed;
 }
 
 AbstractStream::BufferingStatus
@@ -363,16 +367,7 @@ AbstractStream::getBufferAndStatus(const Times &deadline,
 {
     if(last_buffer_status == BufferingStatus::End)
         return BufferingStatus::End;
-    *pi_demuxed = getDemuxedAmount(deadline).continuous;
-    bool b_contiguous = isContiguousMux();
-
-    if(!b_contiguous &&
-       prevTimeContext.media != VLC_TICK_INVALID &&
-       deadline.segment.media != VLC_TICK_INVALID)
-    {
-        if(prevTimeContext.media - deadline.segment.media > *pi_demuxed)
-            *pi_demuxed = prevTimeContext.media - deadline.segment.media;
-    }
+    *pi_demuxed = getDemuxedAmount(deadline);
 
     if(*pi_demuxed < i_max_buffering) /* need to read more */
     {
@@ -437,7 +432,7 @@ AbstractStream::BufferingStatus AbstractStream::doBufferize(Times deadline,
         return BufferingStatus::Suspended;
     }
 
-    if(!isContiguousMux())
+    if(!contiguous)
     {
         if(!fakeEsOut()->hasSynchronizationReference())
         {
@@ -483,10 +478,12 @@ AbstractStream::BufferingStatus AbstractStream::doBufferize(Times deadline,
     }
 
     vlc_tick_t i_demuxed = fakeEsOut()->commandsQueue()->getDemuxedAmount(deadline).continuous;
-    if(!isContiguousMux() && prevTimeContext.media != VLC_TICK_INVALID)
+    if(!contiguous && prevEndTimeContext.media != VLC_TICK_INVALID
+       && deadline.segment.media != VLC_TICK_INVALID)
     {
-        if(prevTimeContext.media - deadline.segment.media > i_demuxed)
-            i_demuxed = prevTimeContext.media - deadline.segment.media;
+        vlc_tick_t i_mediaamount = fakeEsOut()->commandsQueue()->getDemuxedMediaAmount(deadline).segment.media;
+        if(i_mediaamount > i_demuxed)
+            i_demuxed = i_mediaamount;
     }
 
     segmentTracker->notifyBufferingLevel(i_min_buffering, i_max_buffering, i_demuxed, i_target_buffering);
@@ -538,13 +535,23 @@ AbstractStream::BufferingStatus AbstractStream::doBufferize(Times deadline,
             vlc_mutex_unlock(&lock);
             return BufferingStatus::End;
         }
-        i_demuxed = fakeEsOut()->commandsQueue()->getDemuxedAmount(deadline).continuous;
-        segmentTracker->notifyBufferingLevel(i_min_buffering, i_max_buffering, i_demuxed, i_target_buffering);
+
+        if(deadline.continuous != VLC_TICK_INVALID)
+        {
+            i_demuxed = fakeEsOut()->commandsQueue()->getDemuxedAmount(deadline).continuous;
+            segmentTracker->notifyBufferingLevel(i_min_buffering, i_max_buffering, i_demuxed, i_target_buffering);
+        }
+        else
+        {
+            /* On initial pass, there's no demux time known, we need to fake it */
+            if(fakeEsOut()->commandsQueue()->getBufferingLevel().continuous != VLC_TICK_INVALID)
+                i_demuxed = i_min_buffering;
+        }
     }
     vlc_mutex_unlock(&lock);
 
     Times first = fakeEsOut()->commandsQueue()->getFirstTimes();
-    if(isContiguousMux() && first.continuous != VLC_TICK_INVALID && first.segment.demux != VLC_TICK_INVALID)
+    if(contiguous && first.continuous != VLC_TICK_INVALID && first.segment.demux != VLC_TICK_INVALID)
         segmentTracker->updateSynchronizationReference(currentSequence, first);
 
     if(i_demuxed < i_max_buffering) /* need to read more */
@@ -595,21 +602,16 @@ AbstractStream::Status AbstractStream::dequeue(Times deadline, Times *times)
                      pcrvalue ? bufferingLevel - pcrvalue : 0,
                      description.c_str()));
 
-    Times head = fakeEsOut()->commandsQueue()->getFirstTimes();
     if(deadline.continuous <= bufferingLevel) /* demuxed */
     {
         *times = fakeEsOut()->commandsQueue()->Process(deadline);
         return Status::Demuxed;
     }
-    else if(!isContiguousMux() &&
-       deadline.continuous != VLC_TICK_INVALID &&
-       prevTimeContext.media != VLC_TICK_INVALID &&
-       deadline.segment.media < prevTimeContext.media &&
-       head.segment.media <= prevTimeContext.media )
+    else if(!contiguous &&
+            fakeEsOut()->commandsQueue()->getDemuxedMediaAmount(deadline).segment.media > 0)
     {
         *times = deadline;
-        times->segment.offsetBy(prevTimeContext.media - times->segment.media);
-        times->continuous += (prevTimeContext.media - times->segment.media);
+        fakeEsOut()->commandsQueue()->Process(Times()); /* handle untimed events (es add) */
         return Status::Demuxed;
     }
 
@@ -791,6 +793,8 @@ void AbstractStream::trackerEvent(const TrackerEvent &ev)
 
         case TrackerEvent::Type::SegmentGap:
             segmentgap = true;
+            prevEndTimeContext = SegmentTimes();
+            currentTimeContext = SegmentTimes(); /* fired before segmentchanged */
             break;
 
         case TrackerEvent::Type::FormatChange:
@@ -863,7 +867,9 @@ void AbstractStream::trackerEvent(const TrackerEvent &ev)
             {
                 needrestart = true;
             }
-            prevTimeContext = currentTimeContext;
+            prevEndTimeContext = currentTimeContext;
+            prevEndTimeContext.offsetBy(currentDuration);
+            fakeEsOut()->setSegmentProgressTimes(prevEndTimeContext);
             currentTimeContext.media = event.starttime;
             currentTimeContext.display = event.displaytime;
             currentSequence = event.sequence;

@@ -75,8 +75,8 @@ static const char * const intent_text[] = {
     "Saturation",
 };
 
-#define PRIM_TEXT "Display primaries"
-#define PRIM_LONGTEXT "The primaries associated with the output display"
+#define PRIM_TEXT "Override detected display primaries"
+#define PRIM_LONGTEXT "Override the auto-detected display primaries."
 
 static const int prim_values[] = {
     PL_COLOR_PRIM_UNKNOWN,
@@ -100,7 +100,7 @@ static const int prim_values[] = {
 };
 
 static const char * const prim_text[] = {
-    "Automatic / Unknown primaries",
+    "Automatic (no override)",
     "ITU-R Rec. BT.601 (525-line = NTSC, SMPTE-C)",
     "ITU-R Rec. BT.601 (625-line = PAL, SECAM)",
     "ITU-R Rec. BT.709 (HD), also sRGB",
@@ -120,8 +120,8 @@ static const char * const prim_text[] = {
 #endif
 };
 
-#define TRC_TEXT "Display gamma / transfer function"
-#define TRC_LONGTEXT "The gamma/transfer function associated with the output display"
+#define TRC_TEXT "Override detected display gamma"
+#define TRC_LONGTEXT "Override the auto-detected display gamma / transfer function."
 
 static const int trc_values[] = {
     PL_COLOR_TRC_UNKNOWN,
@@ -140,7 +140,7 @@ static const int trc_values[] = {
 };
 
 static const char * const trc_text[] = {
-    "Automatic / Unknown gamma",
+    "Automatic (no override)",
     "ITU-R Rec. BT.1886 (CRT emulation + OOTF)",
     "IEC 61966-2-4 sRGB (CRT emulation)",
     "Linear light content",
@@ -190,6 +190,30 @@ static const char * const lut_mode_text[] = {
 
 #define USER_SHADER_FILE_TEXT "Custom shader"
 #define USER_SHADER_FILE_LONGTEXT "Path to a file containing a custom user shader, in mpv .hook format."
+
+enum {
+    OUTPUT_AUTO,
+    OUTPUT_SDR,
+    OUTPUT_HDR10,
+    OUTPUT_HLG,
+};
+
+static const int output_values[] = {
+    OUTPUT_AUTO,
+    OUTPUT_SDR,
+    OUTPUT_HDR10,
+    OUTPUT_HLG,
+};
+
+static const char * const output_text[] = {
+    "Automatic (passthrough)",
+    "Standard gamut SDR",
+    "HDR10 (BT.2020+PQ)",
+    "BT.2020+HLG",
+};
+
+#define OUTPUT_HINT_TEXT "Display output colorspace"
+#define OUTPUT_HINT_LONGTEXT "Determines what colorspace to try configuring the display to. Note that the HDR modes require a compatible driver and display."
 
 #define TONEMAPPING_TEXT "Tone-mapping algorithm"
 #define TONEMAPPING_LONGTEXT "Algorithm to use when converting from wide gamut to standard gamut, or from HDR to SDR."

@@ -51,7 +51,7 @@ variables:
         HOST_ARCH: x86_64
         TRIPLET: $HOST_ARCH-w64-mingw32
 
-.variables-uwp-arm64: &variables-uwp-arm64
+.variables-win64-arm: &variables-win64-arm
         SHORTARCH: arm64
         HOST_ARCH: aarch64
         TRIPLET: $HOST_ARCH-w64-mingw32
@@ -164,14 +164,14 @@ win64-llvm:
         name: $VLC_WIN_LLVM_IMAGE
     variables: *variables-win64
 
-win64-ucrt-llvm:
+win64-arm-llvm:
     extends: .win-common
     image:
         name: $VLC_UWP_LLVM_IMAGE
     variables:
-        <<: *variables-win64
-        TRIPLET: $HOST_ARCH-ucrt-w64-mingw32
-        UWP_EXTRA_BUILD_FLAGS: -u -x -S 0x0A000006
+        <<: *variables-win64-arm
+        LIBVLC_EXTRA_BUILD_FLAGS: -z
+        UWP_EXTRA_BUILD_FLAGS: -u -w -x -S 0x0A000006
 
 uwp64-libvlc-llvm:
     extends: .win-common
@@ -180,16 +180,7 @@ uwp64-libvlc-llvm:
     variables:
         <<: *variables-win64
         LIBVLC_EXTRA_BUILD_FLAGS: -z
-        UWP_EXTRA_BUILD_FLAGS: -u -w -x
-
-uwp-arm64-libvlc-llvm:
-    extends: .win-common
-    image:
-        name: $VLC_UWP_LLVM_IMAGE
-    variables:
-        <<: *variables-uwp-arm64
-        LIBVLC_EXTRA_BUILD_FLAGS: -z
-        UWP_EXTRA_BUILD_FLAGS: -u -w -x
+        UWP_EXTRA_BUILD_FLAGS: -u -w -x -S 0x0A000006
 
 .nightly-win-common:
     extends: .win-common
@@ -251,7 +242,7 @@ debian:
         if [ -n "$VLC_PREBUILT_CONTRIBS_URL" ]; then
             echo "Building using prebuilt contribs at $VLC_PREBUILT_CONTRIBS_URL"
             make prebuilt PREBUILT_URL="${VLC_PREBUILT_CONTRIBS_URL}"
-            make -j$NCPU --output-sync=recurse .protoc
+            make -j$NCPU --output-sync=recurse tools
         else
             make list
             make -j$NCPU --output-sync=recurse fetch
@@ -375,11 +366,13 @@ raspbian-arm:
     script: |
         if [ "${CI_JOB_NAME:0:8}" = "nightly-" ]; then
             NIGHTLY_EXTRA_BUILD_FLAGS="-i n"
+        else
+            EXTRA_BUILD_FLAGS="-i z"
         fi
         if [ -n "$VLC_PREBUILT_CONTRIBS_URL" ]; then
             echo "Building using prebuilt contribs at $VLC_PREBUILT_CONTRIBS_URL"
         else
-            EXTRA_BUILD_FLAGS="-c -p"
+            EXTRA_BUILD_FLAGS="${EXTRA_BUILD_FLAGS} -c -p"
         fi
         mkdir build && cd build
         ../extras/package/macosx/build.sh $EXTRA_BUILD_FLAGS $NIGHTLY_EXTRA_BUILD_FLAGS -a $HOST_ARCH

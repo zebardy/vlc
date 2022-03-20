@@ -77,13 +77,7 @@ typedef enum libvlc_meta_t {
 } libvlc_meta_t;
 
 /**
- * Note the order of libvlc_state_t enum must match exactly the order of
- * \see mediacontrol_PlayerStatus, \see input_state_e enums,
- * and VideoLAN.LibVLC.State (at bindings/cil/src/media.cs).
- *
- * Expected states by web plugins are:
- * IDLE/CLOSE=0, OPENING=1, PLAYING=3, PAUSED=4,
- * STOPPING=5, ENDED=6, ERROR=7
+ * libvlc media or media_player state
  */
 typedef enum libvlc_state_t
 {
@@ -95,7 +89,7 @@ typedef enum libvlc_state_t
     libvlc_Playing,
     libvlc_Paused,
     libvlc_Stopped,
-    libvlc_Ended,
+    libvlc_Stopping,
     libvlc_Error
 } libvlc_state_t;
 
@@ -501,20 +495,6 @@ LIBVLC_API void libvlc_media_set_meta( libvlc_media_t *p_md,
  * \return true if the write operation was successful
  */
 LIBVLC_API int libvlc_media_save_meta( libvlc_media_t *p_md );
-
-
-/**
- * Get current state of media descriptor object. Possible media states are
- * libvlc_NothingSpecial=0, libvlc_Opening, libvlc_Playing, libvlc_Paused,
- * libvlc_Stopped, libvlc_Ended, libvlc_Error.
- *
- * \see libvlc_state_t
- * \param p_md a media descriptor object
- * \return state of media descriptor object
- */
-LIBVLC_API libvlc_state_t libvlc_media_get_state(
-                                   libvlc_media_t *p_md );
-
 
 /**
  * Get the current statistics about the media

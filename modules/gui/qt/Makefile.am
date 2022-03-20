@@ -56,6 +56,7 @@ libqt_plugin_la_CXXFLAGS += $(WAYLAND_CLIENT_CFLAGS)
 libqt_plugin_la_LIBADD += $(WAYLAND_CLIENT_LIBS)
 endif
 if HAVE_WIN32
+libqt_plugin_la_CXXFLAGS += $(LIBCOMCXXFLAGS)
 libqt_plugin_la_LIBADD += $(LIBCOM) -lcomctl32 -luuid -ld3d11
 endif
 if UPDATE_CHECK
@@ -228,6 +229,8 @@ libqt_plugin_la_SOURCES = \
 	gui/qt/player/player_controller.cpp gui/qt/player/player_controller.hpp gui/qt/player/player_controller_p.hpp \
 	gui/qt/player/player_controlbar_model.cpp gui/qt/player/player_controlbar_model.hpp \
 	gui/qt/player/control_list_model.cpp gui/qt/player/control_list_model.hpp \
+	gui/qt/player/control_list_filter.cpp \
+	gui/qt/player/control_list_filter.hpp \
 	gui/qt/playlist/media.hpp \
 	gui/qt/playlist/playlist_common.cpp \
 	gui/qt/playlist/playlist_common.hpp \
@@ -424,6 +427,7 @@ nodist_libqt_plugin_la_SOURCES = \
 	gui/qt/player/player_controller.moc.cpp \
 	gui/qt/player/player_controlbar_model.moc.cpp \
 	gui/qt/player/control_list_model.moc.cpp \
+	gui/qt/player/control_list_filter.moc.cpp \
 	gui/qt/playlist/playlist_common.moc.cpp \
 	gui/qt/playlist/playlist_controller.moc.cpp \
 	gui/qt/playlist/playlist_item.moc.cpp \
@@ -841,6 +845,7 @@ libqt_plugin_la_QML = \
 	gui/qt/player/qml/controlbarcontrols/QuitButton.qml \
 	gui/qt/player/qml/controlbarcontrols/RandomButton.qml \
 	gui/qt/player/qml/controlbarcontrols/RecordButton.qml \
+	gui/qt/player/qml/controlbarcontrols/ReverseButton.qml \
 	gui/qt/player/qml/controlbarcontrols/SkipBackButton.qml \
 	gui/qt/player/qml/controlbarcontrols/SkipForwardButton.qml \
 	gui/qt/player/qml/controlbarcontrols/SlowerButton.qml \
@@ -862,6 +867,7 @@ libqt_plugin_la_QML = \
 	gui/qt/style/qmldir \
 	gui/qt/util/qml/Helpers.js \
 	gui/qt/util/qml/SelectableDelegateModel.qml \
+	gui/qt/util/qml/ModelSortSettingHandler.qml \
 	gui/qt/util/qml/MultipleBinding.qml \
 	gui/qt/util/qml/FlickableScrollHandler.qml \
 	gui/qt/util/qml/ViewDragAutoScrollHandler.qml \

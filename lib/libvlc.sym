@@ -1,7 +1,5 @@
 libvlc_errmsg
 libvlc_clearerr
-libvlc_printerr
-libvlc_vprinterr
 libvlc_add_intf
 libvlc_audio_equalizer_get_amp_at_index
 libvlc_audio_equalizer_get_band_count
@@ -75,7 +73,6 @@ libvlc_media_get_duration
 libvlc_media_get_filestat
 libvlc_media_get_meta
 libvlc_media_get_mrl
-libvlc_media_get_state
 libvlc_media_get_stats
 libvlc_media_get_tracklist
 libvlc_media_get_type

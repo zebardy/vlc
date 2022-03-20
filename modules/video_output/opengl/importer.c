@@ -236,12 +236,16 @@ vlc_gl_importer_New(struct vlc_gl_interop *interop)
 
     /* Texture size */
     for (unsigned j = 0; j < interop->tex_count; j++) {
-        GLsizei w = interop->fmt_out.i_visible_width  * interop->texs[j].w.num
+        GLsizei vw = interop->fmt_out.i_visible_width  * interop->texs[j].w.num
                   / interop->texs[j].w.den;
-        GLsizei h = interop->fmt_out.i_visible_height * interop->texs[j].h.num
+        GLsizei vh = interop->fmt_out.i_visible_height * interop->texs[j].h.num
                   / interop->texs[j].h.den;
-        glfmt->visible_widths[j] = w;
-        glfmt->visible_heights[j] = h;
+        GLsizei w = (interop->fmt_out.i_visible_width + interop->fmt_out.i_x_offset) * interop->texs[j].w.num
+                  / interop->texs[j].w.den;
+        GLsizei h = (interop->fmt_out.i_visible_height + interop->fmt_out.i_y_offset) *  interop->texs[j].h.num
+                  / interop->texs[j].h.den;
+        glfmt->visible_widths[j] = vw;
+        glfmt->visible_heights[j] = vh;
         if (supports_npot) {
             glfmt->tex_widths[j]  = w;
             glfmt->tex_heights[j] = h;
@@ -337,8 +341,14 @@ vlc_gl_importer_Update(struct vlc_gl_importer *importer, picture_t *picture)
 
         /* The transformation is the same for all planes, even with power-of-two
          * textures. */
-        float scale_w = glfmt->tex_widths[0];
-        float scale_h = glfmt->tex_heights[0];
+        /* FIXME The first plane may have a ratio != 1:1, because with YUV 4:2:2
+         * formats, the Y2 value is ignored so half the horizontal resolution
+         * is lost, see interop_yuv_base_init(). Once this is fixed, the
+         * multiplication by den/num may be removed. */
+        float scale_w = glfmt->tex_widths[0] * interop->texs[0].w.den
+                                             / interop->texs[0].w.num;
+        float scale_h = glfmt->tex_heights[0] * interop->texs[0].h.den
+                                              / interop->texs[0].h.num;
 
         /* Warning: if NPOT is not supported a larger texture is
            allocated. This will cause right and bottom coordinates to
@@ -408,8 +418,8 @@ vlc_gl_importer_Update(struct vlc_gl_importer *importer, picture_t *picture)
 
     /* Update the texture */
     int ret = interop->ops->update_textures(interop, pic->textures,
-                                            glfmt->visible_widths,
-                                            glfmt->visible_heights, picture,
+                                            glfmt->tex_widths,
+                                            glfmt->tex_heights, picture,
                                             NULL);
 
     const float *tm = GetTransformMatrix(interop);

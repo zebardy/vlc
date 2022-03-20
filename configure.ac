@@ -130,14 +130,17 @@ case "${host_os}" in
   linux*)
     SYS=linux
     CFLAGS="${CFLAGS} -pthread"
+    CXXFLAGS="${CXXFLAGS} -pthread"
     ;;
   bsdi*)
     SYS=bsdi
     CFLAGS="${CFLAGS} -pthread"
+    CXXFLAGS="${CXXFLAGS} -pthread"
     ;;
   freebsd*)
     SYS=freebsd
     CFLAGS="${CFLAGS} -pthread"
+    CXXFLAGS="${CXXFLAGS} -pthread"
     CPPFLAGS="${CPPFLAGS} -I/usr/local/include"
     LDFLAGS="${LDFLAGS} -L/usr/local/lib"
     ac_cv_ld_z_defs=no
@@ -385,6 +388,16 @@ AC_ARG_ENABLE([winstore_app],
 vlc_winstore_app=0
 AS_IF([test "${SYS}" = "mingw32"],[
   LIBCOM="-lole32 -loleaut32"
+  AC_LANG_PUSH(C++)
+  AX_CHECK_COMPILE_FLAG([-fno-strict-aliasing], [
+        LIBCOMCXXFLAGS="-fno-strict-aliasing"
+    ],[
+        # fno-strict-aliasing is necessary for WRL and IID_PPV_ARGS to work safely
+        # MSVC doesn't have this option but doesn't do pointer aliasing, so it
+        # should work too
+        AC_MSG_ERROR([-fno-strict-aliasing is necessary for Windows C++ modules])
+    ])
+  AC_LANG_POP(C++)
   AS_IF([test "${enable_winstore_app}" = "yes"], [
     vlc_winstore_app=1
     LIBCOM="-loleaut32"
@@ -397,6 +410,7 @@ AS_IF([test "${SYS}" = "mingw32"],[
     AC_DEFINE([VLC_WINSTORE_APP], [1], [Define to 1 if building for Windows Store.])
   ],[])
   AC_SUBST([LIBCOM])
+  AC_SUBST([LIBCOMCXXFLAGS])
   ])
 
 vlc_build_pdb=0
@@ -3016,6 +3030,11 @@ AS_IF( [test "${enable_telx}" != "no" ],[
   AC_DEFINE(TELX_COMPILED, 1, [Define if the telx module is built])
   ])
 AM_CONDITIONAL([HAVE_TELX], [test "x${have_telx}" = x"yes"])
+
+dnl
+dnl ARIB caption rendering module
+dnl
+PKG_ENABLE_MODULES_VLC([ARIBCAPTION], [], [libaribcaption], [ARIB caption decoder/renderer], [auto])
 
 dnl
 dnl ARIB subtitles rendering module

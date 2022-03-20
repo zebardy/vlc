@@ -27,6 +27,7 @@
         <file alias="SelectableDelegateModel.qml">util/qml/SelectableDelegateModel.qml</file>
         <file alias="Helpers.js">util/qml/Helpers.js</file>
         <file alias="MultipleBinding.qml">util/qml/MultipleBinding.qml</file>
+        <file alias="ModelSortSettingHandler.qml">util/qml/ModelSortSettingHandler.qml</file>
         <file alias="FlickableScrollHandler.qml">util/qml/FlickableScrollHandler.qml</file>
         <file alias="ViewDragAutoScrollHandler.qml">util/qml/ViewDragAutoScrollHandler.qml</file>
         <file alias="BindingRev8.qml">util/qml/BindingRev8.qml</file>
@@ -381,6 +382,7 @@
         <file alias="QuitButton.qml">player/qml/controlbarcontrols/QuitButton.qml</file>
         <file alias="RandomButton.qml">player/qml/controlbarcontrols/RandomButton.qml</file>
         <file alias="RecordButton.qml">player/qml/controlbarcontrols/RecordButton.qml</file>
+        <file alias="ReverseButton.qml">player/qml/controlbarcontrols/ReverseButton.qml</file>
         <file alias="SkipBackButton.qml">player/qml/controlbarcontrols/SkipBackButton.qml</file>
         <file alias="SkipForwardButton.qml">player/qml/controlbarcontrols/SkipForwardButton.qml</file>
         <file alias="SlowerButton.qml">player/qml/controlbarcontrols/SlowerButton.qml</file>

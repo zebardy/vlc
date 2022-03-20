@@ -154,8 +154,6 @@ MainCtx::MainCtx(qt_intf_t *_p_intf)
     /* VideoWidget connects for asynchronous calls */
     connect( this, &MainCtx::askToQuit, THEDP, &DialogsProvider::quit, Qt::QueuedConnection  );
 
-    connect(this, &MainCtx::interfaceFullScreenChanged, this, &MainCtx::useClientSideDecorationChanged);
-
     QMetaObject::invokeMethod(this, [this]()
     {
         // *** HACKY ***
@@ -239,7 +237,7 @@ bool MainCtx::hasVLM() const {
 bool MainCtx::useClientSideDecoration() const
 {
     //don't show CSD when interface is fullscreen
-    return !m_windowTitlebar && m_windowVisibility != QWindow::FullScreen;
+    return !m_windowTitlebar;
 }
 
 bool MainCtx::hasFirstrun() const {
@@ -842,4 +840,14 @@ QWindow *MainCtx::intfMainWindow() const
         return p_intf->p_compositor->interfaceMainWindow();
     else
         return nullptr;
+}
+
+QVariant MainCtx::settingValue(const QString &key, const QVariant &defaultValue) const
+{
+    return settings->value(key, defaultValue);
+}
+
+void MainCtx::setSettingValue(const QString &key, const QVariant &value)
+{
+    settings->setValue(key, value);
 }

@@ -86,7 +86,7 @@ namespace adaptive
         BufferingStatus bufferize(Times, vlc_tick_t, vlc_tick_t,
                                   vlc_tick_t, bool = false);
         BufferingStatus getBufferAndStatus(const Times &, vlc_tick_t, vlc_tick_t, vlc_tick_t *);
-        Times getDemuxedAmount(Times) const;
+        vlc_tick_t getDemuxedAmount(Times) const;
         Status dequeue(Times, Times *);
         bool decodersDrained();
 
@@ -120,11 +120,11 @@ namespace adaptive
                                            es_out_t *, AbstractSourceStream *) const  override;
         virtual bool startDemux();
         virtual bool restartDemux();
-        virtual bool isContiguousMux() const;
 
         virtual void prepareRestart(bool = true);
         bool resetForNewPosition(vlc_tick_t);
 
+        bool contiguous;
         bool segmentgap;
         bool discontinuity;
         bool needrestart;
@@ -158,7 +158,7 @@ namespace adaptive
 
         SegmentTimes startTimeContext;
         SegmentTimes currentTimeContext;
-        SegmentTimes prevTimeContext;
+        SegmentTimes prevEndTimeContext;
         vlc_tick_t currentDuration;
         uint64_t currentSequence;
 

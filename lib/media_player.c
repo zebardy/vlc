@@ -38,7 +38,6 @@
 #include <vlc_actions.h>
 
 #include "libvlc_internal.h"
-#include "media_internal.h" // libvlc_media_set_state()
 #include "media_player_internal.h"
 #include "renderer_discoverer_internal.h"
 
@@ -92,7 +91,7 @@ on_state_changed(vlc_player_t *player, enum vlc_player_state new_state,
             event.type = libvlc_MediaPlayerStopped;
             break;
         case VLC_PLAYER_STATE_STOPPING:
-            event.type = libvlc_MediaPlayerEndReached;
+            event.type = libvlc_MediaPlayerStopping;
             break;
         case VLC_PLAYER_STATE_STARTED:
             event.type = libvlc_MediaPlayerOpening;
@@ -1602,7 +1601,7 @@ libvlc_state_t libvlc_media_player_get_state( libvlc_media_player_t *p_mi )
         case VLC_PLAYER_STATE_STOPPED:
             return libvlc_Stopped;
         case VLC_PLAYER_STATE_STOPPING:
-            return libvlc_Ended;
+            return libvlc_Stopping;
         case VLC_PLAYER_STATE_STARTED:
             return libvlc_Opening;
         case VLC_PLAYER_STATE_PLAYING:

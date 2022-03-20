@@ -37,14 +37,14 @@ namespace hls
             virtual AbstractDemuxer * newDemux(vlc_object_t *, const StreamFormat &,
                                                es_out_t *, AbstractSourceStream *) const override;
             virtual bool setPosition(const StreamPosition &, bool) override;
-            virtual bool isContiguousMux() const override;
+            virtual void trackerEvent(const TrackerEvent &)  override;
 
         private:
             static int ID3TAG_Parse_Handler(uint32_t, const uint8_t *, size_t, void *);
             int ParseID3Tag(uint32_t, const uint8_t *, size_t);
             int ParseID3PrivTag(const uint8_t *, size_t);
             void setMetadataTimeOffset(vlc_tick_t);
-            void setMetadataTimeOffset(vlc_tick_t, vlc_tick_t);
+            void setMetadataTimeMapping(vlc_tick_t, vlc_tick_t);
             bool b_id3_timestamps_offset_set;
             vlc_meta_t *p_meta;
             bool b_meta_updated;

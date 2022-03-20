@@ -130,9 +130,10 @@ libdecklink_plugin_la_CXXFLAGS = $(AM_CXXFLAGS) $(CPPFLAGS_decklink)
 libdecklink_plugin_la_LIBADD = $(LIBS_decklink)
 if HAVE_WIN32
 libdecklink_plugin_la_LIBADD += $(LIBCOM)
+libdecklink_plugin_la_CXXFLAGS += $(LIBCOMCXXFLAGS)
 endif
 if HAVE_LINUX
-libdecklink_plugin_la_LIBADD += $(LIBDL) -lpthread
+libdecklink_plugin_la_LIBADD += $(LIBDL)
 endif
 if HAVE_DECKLINK
 access_LTLIBRARIES += libdecklink_plugin.la
@@ -147,6 +148,7 @@ libv4l2_plugin_la_SOURCES = \
 	access/v4l2/linux/v4l2-common.h \
 	access/v4l2/linux/v4l2-controls.h \
 	access/v4l2/v4l2.c \
+	access/v4l2/buffers.c \
 	access/v4l2/video.c \
 	access/v4l2/vbi.c \
 	access/v4l2/demux.c \
@@ -165,6 +167,7 @@ endif
 libdshow_plugin_la_SOURCES = access/dshow/vlc_dshow.h access/dshow/dshow.cpp access/dshow/access.h \
 	access/dshow/filter.cpp access/dshow/filter.h access/dshow/crossbar.cpp ../src/win32/mta_holder.h
 libdshow_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) -DSTRSAFE_NO_DEPRECATE
+libdshow_plugin_la_CXXFLAGS = $(AM_CXXFLAGS) $(LIBCOMCXXFLAGS)
 libdshow_plugin_la_LIBADD = $(LIBCOM) -luuid -lstrmiids -lksuser
 if HAVE_WIN32_DESKTOP
 access_LTLIBRARIES += libdshow_plugin.la
@@ -195,16 +198,25 @@ BUILT_SOURCES += access/screen/screenshooter-client-protocol.h
 access_LTLIBRARIES += libwl_screenshooter_plugin.la
 endif
 
-libscreen_plugin_la_SOURCES = access/screen/screen.c access/screen/screen.h
-libscreen_plugin_la_LDFLAGS = $(AM_LDFLAGS)
-if HAVE_WIN32_DESKTOP
-libscreen_plugin_la_SOURCES += access/screen/win32.c
-libscreen_plugin_la_LIBADD = -lgdi32
-access_LTLIBRARIES += libscreen_plugin.la
+libscreen_win_plugin_la_SOURCES = access/screen/screen.c access/screen/screen.h \
+	access/screen/dxgi.cpp
+libscreen_win_plugin_la_CXXFLAGS = $(AM_CXXFLAGS) $(LIBCOMCXXFLAGS)
+libscreen_win_plugin_la_LIBADD = libd3d11_common.la $(LIBCOM) -luuid
+if HAVE_WINSTORE
+libscreen_win_plugin_la_LIBADD += -ld3d11
 endif
+if HAVE_WIN32_DESKTOP
+libscreen_win_plugin_la_SOURCES += access/screen/win32.c
+libscreen_win_plugin_la_LIBADD += -lgdi32
+endif
+if HAVE_WIN32
+access_LTLIBRARIES += libscreen_win_plugin.la
+endif
+
 if HAVE_MAC_SCREEN
-libscreen_plugin_la_SOURCES += access/screen/mac.c
-libscreen_plugin_la_LDFLAGS += "-Wl,-framework,OpenGL,-framework,ApplicationServices"
+libscreen_plugin_la_SOURCES = access/screen/screen.c access/screen/screen.h \
+	access/screen/mac.c
+libscreen_plugin_la_LDFLAGS = $(AM_LDFLAGS) "-Wl,-framework,OpenGL,-framework,ApplicationServices"
 access_LTLIBRARIES += libscreen_plugin.la
 endif
 
@@ -300,6 +312,7 @@ if HAVE_WIN32_DESKTOP
 # Work-around automake bug:
 # Use an import library for C++ to retain C linker on other platforms.
 libbda_la_SOURCES = access/dtv/bdadefs.h access/dtv/bdagraph.cpp access/dtv/bdagraph.hpp
+libbda_la_CXXFLAGS = $(AM_CXXFLAGS) $(LIBCOMCXXFLAGS)
 libbda_la_LDFLAGS = -static
 libbda_la_LIBADD = -lstrmiids $(LIBCOM) -luuid
 noinst_LTLIBRARIES += libbda.la

@@ -28,6 +28,13 @@
 #include "custom_menus.hpp"
 #include "util/renderer_manager.hpp"
 
+// MediaLibrary includes
+#include "medialibrary/mlbookmarkmodel.hpp"
+
+// Dialogs includes
+#include "dialogs/dialogs_provider.hpp"
+
+// Qt includes
 #include <QMenu>
 #include <QAction>
 #include <QActionGroup>
@@ -327,39 +334,56 @@ RecentMenu::RecentMenu(MLRecentsModel* model, MediaLib* ml,  QWidget* parent)
     , m_model(model)
     , m_ml(ml)
 {
-    connect(m_model, &MLRecentsModel::rowsAboutToBeRemoved, this, &RecentMenu::onRowsAboutToBeRemoved);
+    connect(m_model, &MLRecentsModel::rowsRemoved, this, &RecentMenu::onRowsRemoved);
     connect(m_model, &MLRecentsModel::rowsInserted, this, &RecentMenu::onRowInserted);
     connect(m_model, &MLRecentsModel::dataChanged, this, &RecentMenu::onDataChanged);
-    connect(m_model, &MLRecentsModel::modelAboutToBeReset, this, &RecentMenu::onModelAboutToBeReset);
     connect(m_model, &MLRecentsModel::modelReset, this, &RecentMenu::onModelReset);
     m_separator = addSeparator();
     addAction( qtr("&Clear"), m_model, &MLRecentsModel::clearHistory );
     onModelReset();
 }
 
-void RecentMenu::onRowsAboutToBeRemoved(const QModelIndex&, int first, int last)
+void RecentMenu::onRowsRemoved(const QModelIndex&, int first, int last)
 {
-    for (int i = last; i >= first; i--)
+    for (int i = first; i <= last; i++)
     {
-        QAction* action = actions()[i];
-        delete action;
+        delete m_actions.at(i);
     }
-    if (actions().count() == 0)
+
+    QList<QAction *>::iterator begin = m_actions.begin();
+
+    m_actions.erase(begin + first, begin + last);
+
+    if (m_actions.isEmpty())
         setEnabled(false);
 }
 
 void RecentMenu::onRowInserted(const QModelIndex&, int first, int last)
 {
+    QAction * before;
+
+    if (first < m_actions.count())
+        before = m_actions.at(first);
+    else
+        // NOTE: In that case we insert *before* the 'Clear' separator.
+        before = m_separator;
+
     for (int i = first; i <= last; i++)
     {
         QModelIndex index = m_model->index(i);
         QString url = m_model->data(index, MLRecentsModel::RECENT_MEDIA_URL).toString();
 
         QAction *choiceAction = new QAction(url, this);
-        insertAction(m_separator , choiceAction);
-        connect(choiceAction, &QAction::triggered, [this, i](){
-            QModelIndex dataIndex = m_model->index(i);
-            MLItemId id = m_model->data(dataIndex, MLRecentsModel::RECENT_MEDIA_ID).value<MLItemId>();
+
+        // NOTE: We are adding sequentially *before* the next action in the list.
+        insertAction(before, choiceAction);
+
+        m_actions.insert(i, choiceAction);
+
+        connect(choiceAction, &QAction::triggered, [this, choiceAction](){
+            QModelIndex index = m_model->index(m_actions.indexOf(choiceAction));
+
+            MLItemId id = m_model->data(index, MLRecentsModel::RECENT_MEDIA_ID).value<MLItemId>();
             m_ml->addAndPlay(id);
         });
         setEnabled(true);
@@ -370,31 +394,120 @@ void RecentMenu::onDataChanged(const QModelIndex& topLeft, const QModelIndex& bo
 {
     for (int i = topLeft.row(); i <= bottomRight.row(); i++)
     {
-        QAction *choiceAction = actions()[i];
-
         QModelIndex index = m_model->index(i);
         QString title = m_model->data(index, MLRecentsModel::RECENT_MEDIA_URL).toString();
 
-        choiceAction->setText(title);
+        m_actions.at(i)->setText(title);
     }
-}
-
-void RecentMenu::onModelAboutToBeReset()
-{
-    for (QAction* action  :actions())
-    {
-        if (action == m_separator)
-            break;
-        delete action;
-    }
-    setEnabled(false);
 }
 
 void RecentMenu::onModelReset()
 {
+    for (QAction * action : m_actions)
+    {
+        delete action;
+    }
+
+    m_actions.clear();
+
     int nb_rows = m_model->rowCount();
     if (nb_rows == 0)
         setEnabled(false);
     else
         onRowInserted({}, 0, nb_rows - 1);
+}
+
+// BookmarkMenu
+
+BookmarkMenu::BookmarkMenu(MLBookmarkModel * model, MediaLib * ml, QWidget * parent)
+    : QMenu(parent), m_model(model), m_ml(ml)
+{
+    setTearOffEnabled(true);
+
+    // FIXME: Do we really need a translation call for the string shortcut ?
+    addAction(qtr("&Manage"), THEDP, &DialogsProvider::bookmarksDialog, qtr("Ctrl+B"));
+
+    addSeparator();
+
+    onModelReset();
+
+    connect(m_model, &MLBookmarkModel::rowsInserted, this, &BookmarkMenu::onRowsInserted);
+    connect(m_model, &MLBookmarkModel::rowsRemoved,  this, &BookmarkMenu::onRowsRemoved);
+
+    connect(m_model, &MLBookmarkModel::dataChanged, this, &BookmarkMenu::onDataChanged);
+
+    connect(m_model, &MLBookmarkModel::modelReset, this, &BookmarkMenu::onModelReset);
+}
+
+// Private slots
+
+void BookmarkMenu::onRowsInserted(const QModelIndex &, int first, int last)
+{
+    QAction * before;
+
+    if (first < m_actions.count())
+        before = m_actions.at(first);
+    else
+        before = nullptr;
+
+    for (int i = first; i <= last; i++)
+    {
+        QModelIndex index = m_model->index(i, 0);
+
+        QString name = m_model->data(index, Qt::DisplayRole).toString();
+
+        QAction * action = new QAction(name, this);
+
+        // NOTE: We are adding sequentially *before* the next action in the list.
+        insertAction(before, action);
+
+        m_actions.insert(i, action);
+
+        connect(action, &QAction::triggered, [this, action]()
+        {
+            QModelIndex index = m_model->index(m_actions.indexOf(action), 0);
+
+            m_model->select(index);
+        });
+    }
+}
+
+void BookmarkMenu::onRowsRemoved(const QModelIndex &, int first, int last)
+{
+    for (int i = first; i <= last; i++)
+    {
+        delete m_actions.at(i);
+    }
+
+    QList<QAction *>::iterator begin = m_actions.begin();
+
+    m_actions.erase(begin + first, begin + last);
+}
+
+void BookmarkMenu::onDataChanged(const QModelIndex & topLeft,
+                                 const QModelIndex & bottomRight, const QVector<int> &)
+{
+    for (int i = topLeft.row(); i <= bottomRight.row(); i++)
+    {
+        QModelIndex index = m_model->index(i, 0);
+
+        QString name = m_model->data(index, Qt::DisplayRole).toString();
+
+        m_actions.at(i)->setText(name);
+    }
+}
+
+void BookmarkMenu::onModelReset()
+{
+    for (QAction * action : m_actions)
+    {
+        delete action;
+    }
+
+    m_actions.clear();
+
+    int count = m_model->rowCount();
+
+    if (count)
+        onRowsInserted(QModelIndex(), 0, count - 1);
 }

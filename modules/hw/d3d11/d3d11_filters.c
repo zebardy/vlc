@@ -202,7 +202,9 @@ static picture_t *AllocPicture( filter_t *p_filter )
     if (unlikely(cfg == NULL))
         return NULL;
 
-    return D3D11_AllocPicture(VLC_OBJECT(p_filter), &p_filter->fmt_out.video, p_filter->vctx_out, cfg);
+    return D3D11_AllocPicture(VLC_OBJECT(p_filter),
+                              &p_filter->fmt_out.video, p_filter->vctx_out,
+                              false, cfg);
 }
 
 static picture_t *Filter(filter_t *p_filter, picture_t *p_pic)
@@ -595,5 +597,10 @@ vlc_module_begin()
     add_integer("winrt-d3dcontext", 0x0, N_("Context"), NULL) /* ID3D11DeviceContext* */
 #endif /* VLC_WINSTORE_APP */
     add_shortcut ("d3d11")
+
+    add_submodule()
+    set_subcategory( SUBCAT_INPUT_VCODEC )
+    set_callbacks( D3D11OpenBlockDecoder, D3D11CloseBlockDecoder )
+    set_capability( "video decoder", 90 )
 
 vlc_module_end()

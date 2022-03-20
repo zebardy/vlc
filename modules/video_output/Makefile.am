@@ -25,9 +25,10 @@ libdecklinkoutput_plugin_la_CXXFLAGS = $(AM_CXXFLAGS) $(CPPFLAGS_decklinkoutput)
 libdecklinkoutput_plugin_la_LIBADD = $(LIBS_decklinkoutput)
 if HAVE_WIN32
 libdecklinkoutput_plugin_la_LIBADD += $(LIBCOM)
+libdecklinkoutput_plugin_la_CXXFLAGS += $(LIBCOMCXXFLAGS)
 endif
 if HAVE_LINUX
-libdecklinkoutput_plugin_la_LIBADD += $(LIBDL) -lpthread
+libdecklinkoutput_plugin_la_LIBADD += $(LIBDL)
 endif
 vout_LTLIBRARIES += libdecklinkoutput_plugin.la
 endif
@@ -181,6 +182,7 @@ libdirect3d11_plugin_la_SOURCES = video_output/win32/direct3d11.cpp \
  video_output/win32/d3d11_swapchain.cpp video_output/win32/d3d11_swapchain.h \
  video_output/win32/dxgi_swapchain.cpp video_output/win32/dxgi_swapchain.h \
  video_output/win32/common.c video_output/win32/common.h
+libdirect3d11_plugin_la_CXXFLAGS = $(AM_CXXFLAGS) $(LIBCOMCXXFLAGS)
 libdirect3d11_plugin_la_LIBADD = libchroma_copy.la libd3d11_common.la $(LIBCOM) -luuid
 if !HAVE_WINSTORE
 libdirect3d11_plugin_la_SOURCES += video_output/win32/events.c \
@@ -318,7 +320,11 @@ libkms_plugin_la_SOURCES = video_output/kms.c
 libkms_plugin_la_CFLAGS = $(AM_CFLAGS) $(KMS_CFLAGS)
 libkms_plugin_la_LIBADD = $(KMS_LIBS)
 
-libdrm_display_plugin_la_SOURCES = video_output/drm_display.c
+libdrm_display_plugin_la_SOURCES = \
+	video_output/drm/vlc_drm.h \
+	video_output/drm/fourcc.c \
+	video_output/drm/buffers.c \
+	video_output/drm/display.c
 libdrm_display_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(KMS_CFLAGS)
 libdrm_display_plugin_la_LIBADD = $(KMS_LIBS)
 if HAVE_KMS
